@@ -14,6 +14,5 @@ export const updateContactQuerySchema = joi
   })
   .or("name", "email", "phone")
   .messages({
-    "object.missing":
-      "At least one field (name, email, or phone) must be provided",
+    "object.missing": "Body must have at least one field",
   });

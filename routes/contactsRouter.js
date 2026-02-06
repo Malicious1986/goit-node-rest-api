@@ -6,13 +6,12 @@ import {
   createContact,
   updateContact,
 } from "../controllers/contactsControllers.js";
-import { createValidator } from "express-joi-validation";
 import {
   createContactQuerySchema,
   updateContactQuerySchema,
 } from "../schemas/contactsSchemas.js";
 
-const validator = createValidator({ passError: true });
+import validateBody from "../helpers/validateBody.js";
 
 const contactsRouter = express.Router();
 
@@ -22,15 +21,11 @@ contactsRouter.get("/:id", getOneContact);
 
 contactsRouter.delete("/:id", deleteContact);
 
-contactsRouter.post(
-  "/",
-  validator.body(createContactQuerySchema),
-  createContact,
-);
+contactsRouter.post("/", validateBody(createContactQuerySchema), createContact);
 
 contactsRouter.put(
   "/:id",
-  validator.body(updateContactQuerySchema),
+  validateBody(updateContactQuerySchema),
   updateContact,
 );
 

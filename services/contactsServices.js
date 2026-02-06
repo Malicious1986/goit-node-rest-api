@@ -54,7 +54,7 @@ export async function removeContactService(contactId) {
 }
 
 export async function addContactService(name, email, phone) {
-  const contacts = await readContactsService();
+  const contacts = await readContacts();
   const newContact = {
     id: uuid(),
     name,
@@ -78,6 +78,12 @@ export async function updateContactService(id, name, email, phone) {
     email: email ?? contact.email,
     phone: phone ?? contact.phone,
   };
+
+  const contacts = await readContacts();
+  const updatedContacts = contacts.map((c) =>
+    c.id === id ? updatedContact : c,
+  );
+  await writeContact(JSON.stringify(updatedContacts));
 
   return updatedContact;
 }
