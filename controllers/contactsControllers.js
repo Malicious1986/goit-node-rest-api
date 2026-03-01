@@ -4,6 +4,7 @@ import {
   listContactsService,
   removeContactService,
   updateContactService,
+  updateStatusContactService,
 } from "../services/contactsServices.js";
 
 export const getAllContacts = async (req, res) => {
@@ -44,6 +45,19 @@ export const updateContact = async (req, res) => {
   const { name, phone, email } = req.body;
   const { id } = req.params;
   const updatedContact = await updateContactService(id, name, email, phone);
+
+  if (updatedContact) {
+    res.status(200).json(updatedContact);
+  } else {
+    res.status(404).json({ message: "Not found" });
+  }
+};
+
+export const updateStatusContact = async (req, res) => {
+  const { status } = req.body;
+  const { id } = req.params;
+
+  const updatedContact = await updateStatusContactService(id, status);
 
   if (updatedContact) {
     res.status(200).json(updatedContact);
