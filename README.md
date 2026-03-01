@@ -4,10 +4,15 @@ A REST API application for managing contacts built with Node.js, Express, and Po
 
 ## Features
 
-- Create, read, update, and delete contacts
+- User authentication (registration, login, logout)
+- JWT token-based authorization
+- User subscription management
+- Create, read, update, and delete contacts (per user)
 - Update contact favorite status
+- Pagination and filtering for contacts
 - PostgreSQL database with Sequelize ORM
 - Input validation using Joi
+- Password hashing with bcrypt
 - CORS enabled
 
 ## Prerequisites
@@ -47,6 +52,36 @@ npm start
 
 The server will start on port 3000 by default.
 
+## Authentication Flow
+
+1. **Register** a new user with email and password
+2. **Login** to receive a JWT token
+3. Use the token in the `Authorization: Bearer {token}` header for all protected endpoints
+4. **Logout** to invalidate the token
+
+### Token Expiration
+
+JWT tokens expire after 24 hours. After expiration, users need to login again to get a new token.
+
+## Database Models
+
+### User Model
+
+- `id` - Auto-generated unique identifier
+- `email` - User email (unique, required)
+- `password` - Hashed password (required)
+- `subscription` - User subscription level: "starter" (default), "pro", or "business"
+- `token` - Current JWT token (null when logged out)
+
+### Contact Model
+
+- `id` - Auto-generated unique identifier
+- `name` - Contact name (required)
+- `email` - Contact email (required)
+- `phone` - Contact phone number (required)
+- `favorite` - Favorite status (boolean, default: false)
+- `owner` - User ID who owns this contact (foreign key, required)
+
 ## Environment Variables
 
 Create a `.env` file in the root directory with the following variables:
@@ -58,20 +93,218 @@ DATABASE_USERNAME=your-database-username
 DATABASE_NAME=your-database-name
 DATABASE_PASSWORD=your-database-password
 DATABASE_PORT=5432
+JWT_SECRET=your-secret-key-for-jwt
 ```
 
 ### Environment Variables Description
 
-| Variable            | Description           | Example                             |
-| ------------------- | --------------------- | ----------------------------------- |
-| `DATABASE_DIALECT`  | Type of database      | `postgres`                          |
-| `DATABASE_HOST`     | Database host address | `localhost` or `your-db-server.com` |
-| `DATABASE_USERNAME` | Database username     | `postgres`                          |
-| `DATABASE_NAME`     | Name of the database  | `contacts_db`                       |
-| `DATABASE_PASSWORD` | Database password     | `your_secure_password`              |
-| `DATABASE_PORT`     | Database port number  | `5432` (default for PostgreSQL)     |
+| Variable            | Description                | Example                             |
+| ------------------- | -------------------------- | ----------------------------------- |
+| `DATABASE_DIALECT`  | Type of database           | `postgres`                          |
+| `DATABASE_HOST`     | Database host address      | `localhost` or `your-db-server.com` |
+| `DATABASE_USERNAME` | Database username          | `postgres`                          |
+| `DATABASE_NAME`     | Name of the database       | `contacts_db`                       |
+| `DATABASE_PASSWORD` | Database password          | `your_secure_password`              |
+| `DATABASE_PORT`     | Database port number       | `5432` (default for PostgreSQL)     |
+| `JWT_SECRET`        | Secret key for JWT signing | `your_random_secret_string`         |
 
 ## API Endpoints
+
+### Authentication
+
+#### Register User
+
+```http
+POST /api/auth/register
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "email": "example@example.com",
+  "password": "examplepassword"
+}
+```
+
+**Response:** `201 Created`
+
+```json
+{
+  "user": {
+    "email": "example@example.com",
+    "subscription": "starter"
+  }
+}
+```
+
+**Error Responses:**
+
+- `400 Bad Request` - Validation error
+- `409 Conflict` - Email already in use
+
+```json
+{
+  "message": "Email in use"
+}
+```
+
+#### Login User
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "email": "example@example.com",
+  "password": "examplepassword"
+}
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "email": "example@example.com",
+    "subscription": "starter"
+  }
+}
+```
+
+**Error Responses:**
+
+- `400 Bad Request` - Validation error
+- `401 Unauthorized` - Invalid credentials
+
+```json
+{
+  "message": "Email or password is wrong"
+}
+```
+
+#### Logout User
+
+```http
+POST /api/auth/logout
+Authorization: Bearer {token}
+```
+
+**Response:** `204 No Content`
+
+**Error Responses:**
+
+- `401 Unauthorized` - Invalid or missing token
+
+```json
+{
+  "message": "Not authorized"
+}
+```
+
+#### Get Current User
+
+```http
+GET /api/auth/current
+Authorization: Bearer {token}
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "email": "example@example.com",
+  "subscription": "starter"
+}
+```
+
+**Error Responses:**
+
+- `401 Unauthorized` - Invalid or missing token
+
+```json
+{
+  "message": "Not authorized"
+}
+```
+
+#### Update Subscription
+
+```http
+PATCH /api/auth/subscription
+Authorization: Bearer {token}
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "subscription": "pro"
+}
+```
+
+**Allowed values:** `"starter"`, `"pro"`, `"business"`
+
+**Response:** `200 OK`
+
+```json
+{
+  "email": "example@example.com",
+  "subscription": "pro"
+}
+```
+
+**Error Responses:**
+
+- `400 Bad Request` - Invalid subscription value
+- `401 Unauthorized` - Invalid or missing token
+
+### Contacts
+
+**Note:** All contact endpoints require authentication. Include the JWT token in the Authorization header:
+
+```
+Authorization: Bearer {token}
+```
+
+#### Get All Contacts
+
+```http
+GET /api/contacts
+GET /api/contacts?page=1&limit=20
+GET /api/contacts?favorite=true
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+
+- `page` (optional) - Page number for pagination (default: 1)
+- `limit` (optional) - Number of items per page (default: 10, max: 100)
+- `favorite` (optional) - Filter by favorite status (`true` or `false`)
+
+**Response:** `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "+1234567890",
+    "favorite": false,
+    "owner": 1,
+    "createdAt": "2026-03-01T12:00:00.000Z",
+    "updatedAt": "2026-03-01T12:00:00.000Z"
+  }
+]
+```
 
 Base URL: `http://localhost:3000/api/contacts`
 
@@ -79,6 +312,7 @@ Base URL: `http://localhost:3000/api/contacts`
 
 ```http
 GET /api/contacts
+Authorization: Bearer {token}
 ```
 
 **Response:** `200 OK`
@@ -101,6 +335,7 @@ GET /api/contacts
 
 ```http
 GET /api/contacts/:id
+Authorization: Bearer {token}
 ```
 
 **Response:** `200 OK` or `404 Not Found`
@@ -121,6 +356,8 @@ GET /api/contacts/:id
 
 ```http
 POST /api/contacts
+Authorization: Bearer {token}
+Content-Type: application/json
 ```
 
 **Request Body:**
@@ -151,6 +388,8 @@ POST /api/contacts
 
 ```http
 PUT /api/contacts/:id
+Authorization: Bearer {token}
+Content-Type: application/json
 ```
 
 **Request Body:**
@@ -169,6 +408,8 @@ PUT /api/contacts/:id
 
 ```http
 PUT /api/contacts/:id/favorite
+Authorization: Bearer {token}
+Content-Type: application/json
 ```
 
 **Request Body:**
@@ -185,6 +426,7 @@ PUT /api/contacts/:id/favorite
 
 ```http
 DELETE /api/contacts/:id
+Authorization: Bearer {token}
 ```
 
 **Response:** `200 OK` or `404 Not Found`
@@ -209,11 +451,35 @@ DELETE /api/contacts/:id
 }
 ```
 
+### 401 Unauthorized
+
+```json
+{
+  "message": "Not authorized"
+}
+```
+
+or
+
+```json
+{
+  "message": "Email or password is wrong"
+}
+```
+
 ### 404 Not Found
 
 ```json
 {
   "message": "Not found"
+}
+```
+
+### 409 Conflict
+
+```json
+{
+  "message": "Email in use"
 }
 ```
 
@@ -231,6 +497,8 @@ DELETE /api/contacts/:id
 - **Sequelize** - ORM for PostgreSQL
 - **PostgreSQL** - Database
 - **Joi** - Schema validation
+- **bcrypt** - Password hashing
+- **jsonwebtoken** - JWT token generation and verification
 - **CORS** - Cross-Origin Resource Sharing
 - **dotenv** - Environment configuration
 

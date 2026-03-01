@@ -11,10 +11,12 @@ import {
   createContactQuerySchema,
   updateContactQuerySchema,
 } from "../schemas/contactsSchemas.js";
+import { authenticateHandler } from "../middlewares/authenticateHandler.js";
 
 import validateBody from "../helpers/validateBody.js";
 
 const contactsRouter = express.Router();
+contactsRouter.use(authenticateHandler);
 
 contactsRouter.get("/", getAllContacts);
 
