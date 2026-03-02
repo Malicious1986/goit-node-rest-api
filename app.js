@@ -1,28 +1,8 @@
-import "dotenv/config";
+import app from "./server.js";
 
-import express from "express";
-import morgan from "morgan";
-import cors from "cors";
-import contactsRouter from "./routes/contactsRouter.js";
-import authRouter from "./routes/authRouter.js";
-import { connectDatabase } from "./db/connectDatabase.js";
-import notFoundHandler from "./middlewares/notFondHandler.js";
-import errorHandler from "./middlewares/errorHandler.js";
+import {connectDatabase} from "./db/connectDatabase.js";
 
-const app = express();
-
-app.use(morgan("tiny"));
-app.use(cors());
-app.use(express.json());
-
-app.use("/api/auth", authRouter);
-app.use("/api/contacts", contactsRouter);
-
-app.use(notFoundHandler);
-app.use(errorHandler);
+const port = Number(process.env.PORT) || 3000;
 
 await connectDatabase();
-
-app.listen(3000, () => {
-  console.log("Server is running. Use our API on port: 3000");
-});
+app.listen(port, ()=> console.log(`Server running on ${port} port`));

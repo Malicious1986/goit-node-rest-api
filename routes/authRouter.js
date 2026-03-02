@@ -11,9 +11,11 @@ import {
   logoutController,
   currentController,
   updateSubscriptionController,
+  avatarsController,
 } from "../controllers/authController.js";
 
 import { authenticateHandler } from "../middlewares/authenticateHandler.js";
+import { uploadHandler } from "../middlewares/uploadHandler.js";
 
 const authRouter = Router();
 
@@ -31,6 +33,12 @@ authRouter.patch(
   authenticateHandler,
   validateBody(updateSubscriptionSchema),
   updateSubscriptionController,
+);
+authRouter.patch(
+  "/avatars",
+  authenticateHandler,
+  uploadHandler.single("avatar"),
+  avatarsController,
 );
 
 export default authRouter;
