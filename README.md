@@ -7,13 +7,17 @@ A REST API application for managing contacts built with Node.js, Express, and Po
 - User authentication (registration, login, logout)
 - JWT token-based authorization
 - User subscription management
+- User avatar management (gravatar integration and custom uploads)
+- Static file serving for avatars
 - Create, read, update, and delete contacts (per user)
 - Update contact favorite status
 - Pagination and filtering for contacts
 - PostgreSQL database with Sequelize ORM
 - Input validation using Joi
 - Password hashing with bcrypt
+- File upload with Multer
 - CORS enabled
+- Unit tests with Jest
 
 ## Prerequisites
 
@@ -72,6 +76,7 @@ JWT tokens expire after 24 hours. After expiration, users need to login again to
 - `password` - Hashed password (required)
 - `subscription` - User subscription level: "starter" (default), "pro", or "business"
 - `token` - Current JWT token (null when logged out)
+- `avatarURL` - URL to user's avatar image (auto-generated via Gravatar on registration)
 
 ### Contact Model
 
@@ -133,11 +138,15 @@ Content-Type: application/json
 ```json
 {
   "user": {
-    "email": "example@example.com",
-    "subscription": "starter"
+    "email": "example@example,
+    "avatarURL": "//www.gravatar.com/avatar/hash?s=100&d=retro"
   }
 }
 ```
+
+**Note:** Upon registration, a Gravatar avatar is automatically generated based on the user's email address.
+
+````
 
 **Error Responses:**
 
@@ -148,7 +157,7 @@ Content-Type: application/json
 {
   "message": "Email in use"
 }
-```
+````
 
 #### Login User
 
@@ -261,7 +270,39 @@ Content-Type: application/json
 }
 ```
 
+#### Update Avatar
+
+```http
+PATCH /api/auth/avatars
+Content-Type: multipart/form-data
+Authorization: Bearer {token}
+```
+
+**Request Body:**
+
+- Form field name: `avatar`
+- File type: Image file (jpg, png, etc.)
+- Max file size: 10MB
+
+**Response:** `200 OK`
+
+```json
+{
+  "avatarURL": "/avatars/1234567890_filename.jpg"
+}
+```
+
 **Error Responses:**
+
+- `401 Unauthorized` - Invalid or missing token
+- `400 Bad Request` - Invalid file type or size
+
+**Notes:**
+
+- Uploaded files are stored in the `public/avatars` directory
+- Files are given unique names to prevent conflicts
+- Avatars are accessible via: `http://localhost:3000/avatars/<filename>`
+  **Error Responses:**
 
 - `400 Bad Request` - Invalid subscription value
 - `401 Unauthorized` - Invalid or missing token
@@ -461,18 +502,51 @@ Authorization: Bearer {token}
 
 or
 
-```json
+````json
 {
-  "message": "Email or password is wrong"
-}
+  "mMulter** - File upload handling
+- **Gravatar** - Avatar generation based on email
+- **CORS** - Cross-Origin Resource Sharing
+- **dotenv** - Environment configuration
+- **Jest** - Testing framework
+- **Supertest** - HTTP testing
+
+## Testing
+
+Run unit tests:
+
+```bash
+npm test
+````
+
+Run tests with coverage:
+
+```bash
+npm run coverage
 ```
 
-### 404 Not Found
+The project includes unit tests for the login controller that verify:
 
-```json
-{
-  "message": "Not found"
-}
+- Status code 200 is returned
+- A valid JWT token is returned
+- User object with email and subscription fields is returned
+
+## Development
+
+To run the application in development mode with auto-reload:
+
+```bash
+npm run dev
+```
+
+This uses nodemon to automatically restart the server when file changes are detected.
+
+## Static Files
+
+Avatar images are served statically from the `public/avatars` directory. Access avatars via:
+
+```
+http://localhost:3000/avatars/<filename>
 ```
 
 ### 409 Conflict
