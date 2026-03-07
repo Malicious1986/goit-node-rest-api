@@ -4,6 +4,7 @@ import {
   authRegisterSchema,
   authLoginSchema,
   updateSubscriptionSchema,
+  resendVerificationSchema,
 } from "../schemas/authSchemas.js";
 import {
   registerController,
@@ -12,6 +13,8 @@ import {
   currentController,
   updateSubscriptionController,
   avatarsController,
+  verificationController,
+  resendVerificationController,
 } from "../controllers/authController.js";
 
 import { authenticateHandler } from "../middlewares/authenticateHandler.js";
@@ -39,6 +42,13 @@ authRouter.patch(
   authenticateHandler,
   uploadHandler.single("avatar"),
   avatarsController,
+);
+
+authRouter.get("/verify/:verificationToken", verificationController);
+authRouter.post(
+  "/verify",
+  validateBody(resendVerificationSchema),
+  resendVerificationController,
 );
 
 export default authRouter;

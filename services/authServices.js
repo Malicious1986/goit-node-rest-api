@@ -1,8 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { v4 as uuid } from "uuid";
 import User from "../db/models/User.js";
 import bcrypt from "bcrypt";
 import HttpError from "../helpers/HttpError.js";
+import { sendVerificationEmail } from "../helpers/email.js";
 import { createToken } from "../helpers/jwt.js";
 
 export const findUser = (where) => User.findOne({ where });
@@ -15,7 +17,23 @@ export const registerUser = async (payload, avatar) => {
   }
 
   const hashPassword = await bcrypt.hash(payload.password, 10);
-  return User.create({ ...payload, password: hashPassword, avatarURL: avatar });
+  const verificationToken = uuid();
+
+  const newUser = await User.create({
+    ...payload,
+    password: hashPassword,
+    avatarURL: avatar,
+    verificationToken,
+    verify: false,
+  });
+
+  try {
+    await sendVerificationEmail(payload.email, verificationToken);
+  } catch (error) {
+    console.error("Failed to send verification email:", error.message);
+  }
+
+  return newUser;
 };
 
 export const loginUser = async ({ email, password }) => {
@@ -23,6 +41,10 @@ export const loginUser = async ({ email, password }) => {
 
   if (!user) {
     throw HttpError(401, "Email or password is wrong");
+  }
+
+  if (!user.verify) {
+    throw HttpError(401, "Email not verified");
   }
 
   const passwordCompare = await bcrypt.compare(password, user.password);
@@ -80,16 +102,47 @@ export const updateSubscription = async (id, subscription) => {
 };
 
 export const uploadAvatar = async (id, file) => {
-  let avatar = null;
   const user = await User.findByPk(id);
 
-  if (file) {
-    const newPath = path.resolve("public", "avatars", file.filename);
-    await fs.rename(file.path, newPath);
-    avatar = path.join("/avatars", file.filename);
+  if (!file) {
+    throw HttpError(400, "No file provided");
   }
+
+  const newPath = path.resolve("public", "avatars", file.filename);
+  await fs.rename(file.path, newPath);
+  const avatar = path.join("/avatars", file.filename);
+
   user.avatarURL = avatar;
   await user.save();
 
   return avatar;
+};
+
+export const verifyUser = async (verificationToken) => {
+  const user = await User.findOne({ where: { verificationToken } });
+
+  if (!user) {
+    throw HttpError(404, "User not found");
+  }
+
+  user.verificationToken = null;
+  user.verify = true;
+
+  await user.save();
+};
+
+export const resendVerification = async (email) => {
+  const user = await User.findOne({ where: { email } });
+
+  if (!user) {
+    throw HttpError(404, "User not found");
+  }
+  if (user.verify) {
+    throw HttpError(400, "Verification has already been passed");
+  }
+  if (!user.verificationToken) {
+    throw HttpError(400, "Verification token is missing");
+  }
+
+  await sendVerificationEmail(email, user.verificationToken);
 };

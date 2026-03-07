@@ -5,6 +5,8 @@ import {
   currentUser,
   updateSubscription,
   uploadAvatar,
+  verifyUser,
+  resendVerification,
 } from "../services/authServices.js";
 import gravatar from "gravatar";
 
@@ -16,7 +18,7 @@ export const registerController = async (req, res) => {
     user: {
       subscription: newUser.subscription,
       email: newUser.email,
-      avatarURL: avatar ?? null,
+      avatarURL: avatar,
     },
   });
 };
@@ -46,7 +48,21 @@ export const updateSubscriptionController = async (req, res) => {
 };
 
 export const avatarsController = async (req, res) => {
-  const user = await currentUser(req.user.id);
   const avatarURL = await uploadAvatar(req.user.id, req.file);
   res.status(200).json({ avatarURL });
+};
+
+export const verificationController = async (req, res) => {
+  const { verificationToken } = req.params;
+
+  await verifyUser(verificationToken);
+  res.status(200).json({ message: "Verification successful" });
+};
+
+export const resendVerificationController = async (req, res) => {
+  const { email } = req.body;
+
+  await resendVerification(email);
+
+  res.status(200).json({ message: "Verification email sent" });
 };

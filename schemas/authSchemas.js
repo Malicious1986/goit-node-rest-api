@@ -20,3 +20,7 @@ export const authLoginSchema = Joi.object({
 export const updateSubscriptionSchema = Joi.object({
   subscription: Joi.string().valid("starter", "pro", "business").required(),
 });
+
+export const resendVerificationSchema = Joi.object({
+  email: Joi.string().pattern(emailRegex).required(),
+});
